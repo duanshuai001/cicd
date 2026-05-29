@@ -1,0 +1,62 @@
+notifications:
+  channels:
+    slack:
+      enabled: false
+      webhook_url_secret: SLACK_WEBHOOK_URL
+      channels:
+        ci: "#ci-notifications"
+        cd: "#cd-notifications"
+        alerts: "#alerts-production"
+        security: "#security-alerts"
+
+    dingtalk:
+      enabled: false
+      webhook_url_secret: DINGTALK_WEBHOOK_URL
+      mention_on_failure:
+        - "all"
+
+    github:
+      enabled: true
+      commit_status: true
+      check_run: true
+
+  rules:
+    - event: build_failure
+      channels: [slack, dingtalk, github]
+      severity: error
+      template: "❌ Build failed for {repository} on {branch}"
+
+    - event: test_failure
+      channels: [slack, github]
+      severity: error
+      template: "❌ Tests failed for {repository} on {branch}"
+
+    - event: security_vulnerability
+      channels: [slack, dingtalk, github]
+      severity: critical
+      template: "🚨 Security vulnerability found in {repository}: {severity} {package}"
+
+    - event: deploy_started
+      channels: [slack, dingtalk]
+      severity: info
+      template: "🚀 Deploying {repository} to {environment} (tag: {image_tag})"
+
+    - event: deploy_success
+      channels: [slack, dingtalk]
+      severity: info
+      template: "✅ Deploy succeeded for {repository} to {environment} (tag: {image_tag})"
+
+    - event: deploy_failure
+      channels: [slack, dingtalk, github]
+      severity: critical
+      template: "❌ Deploy failed for {repository} to {environment} (tag: {image_tag})"
+
+    - event: rollback
+      channels: [slack, dingtalk, github]
+      severity: warning
+      template: "⚠️ Rollback triggered for {repository} in {environment}"
+
+    - event: release_created
+      channels: [slack, dingtalk]
+      severity: info
+      template: "🎉 Release {version} created for {repository}"

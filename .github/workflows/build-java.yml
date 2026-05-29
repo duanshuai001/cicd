@@ -1,0 +1,53 @@
+name: Build Java Maven
+
+on:
+  workflow_call:
+    inputs:
+      java-version:
+        type: string
+        default: "21"
+      maven-modules:
+        type: string
+        required: true
+      run-integration-tests:
+        type: boolean
+        default: false
+      maven-args:
+        type: string
+        default: ""
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: ${{ inputs.java-version }}
+          distribution: temurin
+          cache: maven
+
+      - name: Compile
+        run: mvn compile -B -pl ${{ inputs.maven-modules }} -am ${{ inputs.maven-args }}
+
+      - name: Unit Tests
+        run: mvn test -B -pl ${{ inputs.maven-modules }} -am ${{ inputs.maven-args }}
+
+      - name: Integration Tests
+        if: ${{ inputs.run-integration-tests }}
+        run: mvn verify -B -pl ${{ inputs.maven-modules }} -am -DskipUnitTests ${{ inputs.maven-args }}
+
+      - name: Package
+        run: mvn package -B -DskipTests -pl ${{ inputs.maven-modules }} -am ${{ inputs.maven-args }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          path: "**/target/*.jar"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: surefire-reports
+          path: "**/target/surefire-reports/"

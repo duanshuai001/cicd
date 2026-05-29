@@ -1,0 +1,127 @@
+environments:
+  dev:
+    description: "Development environment for feature testing"
+    namespace: eval-dev
+    kustomize_overlay: ci/k8s/overlays/dev
+    auto_deploy: true
+    deploy_on:
+      - branch: develop
+      - branch: "feature/**"
+    approval_required: false
+    resources:
+      backend:
+        replicas: 1
+        cpu_request: 125m
+        cpu_limit: 500m
+        memory_request: 256Mi
+        memory_limit: 512Mi
+      frontend:
+        replicas: 1
+        cpu_request: 50m
+        cpu_limit: 100m
+        memory_request: 32Mi
+        memory_limit: 64Mi
+      evaluation:
+        replicas: 1
+        cpu_request: 125m
+        cpu_limit: 500m
+        memory_request: 256Mi
+        memory_limit: 512Mi
+    health_check:
+      timeout_seconds: 180
+      interval_seconds: 10
+    rollback:
+      enabled: true
+      auto_rollback: true
+
+  staging:
+    description: "Staging environment for pre-production validation"
+    namespace: eval-staging
+    kustomize_overlay: ci/k8s/overlays/staging
+    auto_deploy: true
+    deploy_on:
+      - branch: develop
+    approval_required: false
+    resources:
+      backend:
+        replicas: 2
+        cpu_request: 250m
+        cpu_limit: "1"
+        memory_request: 512Mi
+        memory_limit: 1Gi
+      frontend:
+        replicas: 2
+        cpu_request: 100m
+        cpu_limit: 250m
+        memory_request: 64Mi
+        memory_limit: 128Mi
+      evaluation:
+        replicas: 1
+        cpu_request: 125m
+        cpu_limit: 500m
+        memory_request: 256Mi
+        memory_limit: 512Mi
+    health_check:
+      timeout_seconds: 300
+      interval_seconds: 10
+    rollback:
+      enabled: true
+      auto_rollback: true
+    smoke_tests:
+      enabled: true
+      test_suite: staging-smoke
+
+  prod:
+    description: "Production environment"
+    namespace: eval-prod
+    kustomize_overlay: ci/k8s/overlays/prod
+    auto_deploy: false
+    deploy_on:
+      - tag: "v*"
+    approval_required: true
+    approvers:
+      - team: devops
+      - team: tech-leads
+    resources:
+      backend:
+        replicas: 3
+        cpu_request: 500m
+        cpu_limit: "2"
+        memory_request: 1Gi
+        memory_limit: 2Gi
+      frontend:
+        replicas: 3
+        cpu_request: 100m
+        cpu_limit: 250m
+        memory_request: 64Mi
+        memory_limit: 128Mi
+      evaluation:
+        replicas: 2
+        cpu_request: 250m
+        cpu_limit: "1"
+        memory_request: 512Mi
+        memory_limit: 1Gi
+    health_check:
+      timeout_seconds: 300
+      interval_seconds: 10
+    rollback:
+      enabled: true
+      auto_rollback: false
+    smoke_tests:
+      enabled: true
+      test_suite: production-smoke
+    monitoring:
+      enabled: true
+      alert_channel: "#alerts-production"
+
+promotion:
+  dev_to_staging:
+    trigger: manual
+    requires_approval: false
+  staging_to_prod:
+    trigger: tag
+    tag_pattern: "v*"
+    requires_approval: true
+    approvers:
+      - team: devops
+      - team: tech-leads

@@ -1,0 +1,90 @@
+name: Deploy to Kubernetes
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        type: string
+        required: true
+        description: "Deployment environment (dev, staging, prod)"
+      image-tag:
+        type: string
+        default: ""
+        description: "Container image tag, defaults to git SHA if empty"
+      namespace:
+        type: string
+        default: "eval"
+        description: "Kubernetes namespace"
+      kustomize-overlay-path:
+        type: string
+        required: true
+        description: "Path to kustomize overlay directory"
+      auto-rollback:
+        type: boolean
+        default: true
+        description: "Automatically rollback on failure"
+    secrets:
+      KUBE_CONFIG:
+        required: true
+        description: "Base64-encoded kubeconfig"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+
+      - name: Setup kustomize
+        uses: imranismail/setup-kustomize@v2
+
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Set image tag in kustomization
+        if: ${{ inputs.image-tag != '' }}
+        working-directory: ${{ inputs.kustomize-overlay-path }}
+        run: kustomize edit set image app=${{ inputs.image-tag }}
+
+      - name: Build manifests
+        id: build
+        working-directory: ${{ inputs.kustomize-overlay-path }}
+        run: |
+          kustomize build . > manifest.yaml
+          echo "manifest=manifest.yaml" >> "$GITHUB_OUTPUT"
+
+      - name: Apply manifests
+        working-directory: ${{ inputs.kustomize-overlay-path }}
+        run: kubectl apply -f manifest.yaml
+
+      - name: Wait for rollout
+        id: rollout
+        run: kubectl rollout status deployment --namespace ${{ inputs.namespace }} --timeout=300s
+
+      - name: Health check
+        id: health-check
+        run: |
+          READY=$(kubectl get pods --namespace ${{ inputs.namespace }} --no-headers | grep -c -E "Running|Completed" || true)
+          TOTAL=$(kubectl get pods --namespace ${{ inputs.namespace }} --no-headers | wc -l | tr -d ' ')
+          if [ "$READY" -ne "$TOTAL" ]; then
+            echo "Health check failed: $READY/$TOTAL pods are ready"
+            echo "healthy=false" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+          echo "Health check passed: $READY/$TOTAL pods are ready"
+          echo "healthy=true" >> "$GITHUB_OUTPUT"
+
+      - name: Rollback on failure
+        if: ${{ inputs.auto-rollback == true && failure() && steps.health-check.outcome == 'failure' }}
+        run: kubectl rollout undo deployment --namespace ${{ inputs.namespace }}
+
+      - name: Cleanup kubeconfig
+        if: always()
+        run: rm -f ~/.kube/config

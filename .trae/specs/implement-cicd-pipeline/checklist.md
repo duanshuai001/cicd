@@ -1,0 +1,37 @@
+- [x] Kind 集群配置文件 kind-config.yaml 已创建，包含 Ingress 端口映射和本地 Docker 网络配置
+- [x] 一键创建集群脚本 create-cluster.sh 已创建，包含 Docker 检查、Kind/kubectl 安装、集群创建、Ingress 安装、命名空间创建、kubeconfig 导出和健康验证
+- [x] 一键销毁集群脚本 destroy-cluster.sh 已创建
+- [x] 本地镜像加载脚本 load-images.sh 已创建，支持一键构建和加载 eval 所有服务镜像
+- [x] 本地部署验证脚本 verify-deployment.sh 已创建，支持部署 eval 应用并验证服务可达
+- [x] 本地 Kind 集群已成功创建并通过健康验证（节点 Ready、Ingress 运行正常、kubectl 可连接）
+- [x] 共享仓库 build-java.yml 可重用工作流已创建，支持 workflow_call 触发，包含 JDK 配置、Maven 缓存、编译/测试/打包步骤和产物上传
+- [x] 共享仓库 build-java.yml 支持跨仓库引用（通过 `uses: <org>/cicd/.github/workflows/build-java.yml@v1`）
+- [x] 共享仓库 build-docker.yml 可重用工作流已创建，支持 Docker 登录、镜像构建推送、GHA 缓存和双标签（SHA + latest）
+- [x] 共享仓库 build-docker.yml 支持可选的构建产物下载步骤
+- [x] 共享仓库 deploy-k8s.yml 可重用工作流已创建，支持 Kustomize 构建、kubectl apply、rollout 等待、健康检查和自动回滚
+- [x] 共享仓库 deploy-k8s.yml 接受 kustomize-overlay-path 参数，适配不同项目的 K8s 配置路径
+- [x] 共享仓库 deploy-k8s.yml 包含 KUBE_CONFIG 条件判断，K8s 未就绪时跳过部署
+- [x] 共享仓库 security-scan.yml 可重用工作流已创建，包含 OWASP 依赖扫描、Trivy 镜像扫描和 CodeQL 静态分析
+- [x] 共享脚本已从 eval 项目迁移到 cicd 仓库，且通过环境变量参数化（不硬编码项目名）
+- [x] Eval 项目 ci.yml 主工作流已创建，配置了正确的触发条件（feature/**、develop、release/**）和 concurrency 组
+- [x] Eval 项目 ci.yml 通过跨仓库 uses: 引用共享可复用工作流（build-java.yml、build-docker.yml、security-scan.yml、deploy-k8s.yml）
+- [x] Eval 项目 ci.yml 中 develop 分支推送触发 Docker 镜像构建和 dev 环境部署（K8s 就绪后）
+- [x] Eval 项目 ci.yml 中 release/** 分支推送触发 Docker 镜像构建和 staging 环境部署（K8s 就绪后）
+- [x] Eval 项目 ci.yml 中 feature/** 分支仅触发编译+测试，不构建镜像和部署
+- [x] Eval 项目 cd.yml 主工作流已创建，支持手动部署和 v* 标签部署 prod（需审批）
+- [x] Eval 项目 cd.yml 中 prod 环境配置了审批要求
+- [x] Eval 项目 cd.yml 所有部署步骤包含 K8s 就绪条件判断
+- [x] Eval 项目 pr-checks.yml 工作流已创建，支持 PR 到 develop 和 release/** 分支的检查
+- [x] Eval 项目 release.yml 工作流已创建，支持 v* 标签触发、全量构建、语义化版本标签和 GitHub Release 创建
+- [x] Dockerfile.backend 已优化为多阶段构建，包含 Maven 构建阶段和 JRE 运行阶段
+- [x] Dockerfile.evaluation 已优化为多阶段构建
+- [x] Dockerfile.gateway 已优化为多阶段构建
+- [x] 多阶段 Dockerfile 同时兼容 CI 环境和本地 docker build
+- [x] Gateway K8s Deployment 和 Service 资源已创建
+- [x] kustomization.yaml 已更新包含 gateway 资源引用
+- [x] Ingress 配置已更新包含 gateway 路由规则
+- [x] 各环境 overlay 的 kustomization.yaml 已适配 gateway 配置
+- [x] eval 项目的 build.sh 脚本已增强支持 GITHUB_SHA 环境变量和构建耗时统计
+- [x] eval 项目的 build.sh 脚本已增加 gateway 镜像构建支持
+- [x] 所有工作流 YAML 语法正确，可通过 actionlint 验证
+- [x] 所有 K8s 配置可通过 kustomize build 验证

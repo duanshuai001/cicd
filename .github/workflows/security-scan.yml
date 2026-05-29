@@ -1,0 +1,76 @@
+name: Security Scan
+
+on:
+  workflow_call:
+    inputs:
+      java-version:
+        type: string
+        default: "21"
+      maven-modules:
+        type: string
+        default: ""
+      scan-codeql:
+        type: boolean
+        default: true
+      scan-dependencies:
+        type: boolean
+        default: true
+      scan-container:
+        type: boolean
+        default: false
+      container-image:
+        type: string
+        default: ""
+
+jobs:
+  dependency-check:
+    runs-on: ubuntu-latest
+    if: inputs.scan-dependencies && inputs.maven-modules != ''
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          java-version: ${{ inputs.java-version }}
+          distribution: temurin
+          cache: maven
+      - run: mvn org.owasp:dependency-check-maven:check -pl ${{ inputs.maven-modules }} -am
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dependency-check-report
+          path: target/dependency-check-report.html
+      - name: Fail on high severity
+        run: |
+          if grep -q 'severity="high"' target/dependency-check-report.html 2>/dev/null; then
+            echo "::error::CVSS severity >= 7 found in dependency check report"
+            exit 1
+          fi
+
+  codeql:
+    runs-on: ubuntu-latest
+    if: inputs.scan-codeql
+    permissions:
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: java
+      - uses: github/codeql-action/autobuild@v3
+      - uses: github/codeql-action/analyze@v3
+
+  trivy:
+    runs-on: ubuntu-latest
+    if: inputs.scan-container && inputs.container-image != ''
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ inputs.container-image }}
+          format: sarif
+          output: trivy-results.sarif
+          exit-code: 1
+          severity: CRITICAL
+      - uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-results.sarif
