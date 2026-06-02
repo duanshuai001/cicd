@@ -25,7 +25,7 @@ on:
         description: "Automatically rollback on failure"
     secrets:
       KUBE_CONFIG:
-        required: true
+        required: false
         description: "Base64-encoded kubeconfig"
 
 jobs:

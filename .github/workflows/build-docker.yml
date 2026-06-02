@@ -27,13 +27,6 @@ on:
         type: string
         default: ""
         description: "Additional tags for the image"
-    secrets:
-      DOCKER_REGISTRY:
-        required: false
-      DOCKER_USERNAME:
-        required: false
-      DOCKER_PASSWORD:
-        required: false
 
 jobs:
   build-and-push:
@@ -56,15 +49,15 @@ jobs:
       - name: Login to registry
         uses: docker/login-action@v3
         with:
-          registry: ${{ secrets.DOCKER_USERNAME != '' && secrets.DOCKER_REGISTRY || 'ghcr.io' }}
-          username: ${{ secrets.DOCKER_USERNAME != '' && secrets.DOCKER_USERNAME || github.actor }}
-          password: ${{ secrets.DOCKER_USERNAME != '' && secrets.DOCKER_PASSWORD || secrets.GITHUB_TOKEN }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ secrets.DOCKER_REGISTRY || 'ghcr.io' }}/${{ github.repository_owner }}/${{ inputs.image-name }}
+          images: ghcr.io/${{ github.repository_owner }}/${{ inputs.image-name }}
           tags: |
             type=sha,prefix=
             type=raw,value=latest,enable={{is_default_branch}}

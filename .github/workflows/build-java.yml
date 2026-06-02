@@ -19,6 +19,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: write
     steps:
       - uses: actions/checkout@v4
 
@@ -33,6 +36,65 @@ jobs:
 
       - name: Unit Tests
         run: mvn test -B -pl ${{ inputs.maven-modules }} -am ${{ inputs.maven-args }}
+
+      - name: Publish Test Results
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          report-paths: '**/target/surefire-reports/TEST-*.xml'
+          name: Maven Test Results
+          path-replace-backslashes: true
+
+      - name: Test Summary
+        if: always()
+        run: |
+          total_tests=0
+          total_failures=0
+          total_errors=0
+          total_skipped=0
+          summary_lines=""
+
+          for f in $(find . -path '*/target/surefire-reports/TEST-*.xml' 2>/dev/null | sort); do
+            module=$(echo "$f" | sed 's|./||' | sed 's|/target/.*||')
+            tests=$(grep -oP 'testsuite.*?tests="\K[^"]+' "$f" | head -1)
+            failures=$(grep -oP 'testsuite.*?failures="\K[^"]+' "$f" | head -1)
+            errors=$(grep -oP 'testsuite.*?errors="\K[^"]+' "$f" | head -1)
+            skipped=$(grep -oP 'testsuite.*?skipped="\K[^"]+' "$f" | head -1)
+            tests=${tests:-0}
+            failures=${failures:-0}
+            errors=${errors:-0}
+            skipped=${skipped:-0}
+            passed=$((tests - failures - errors - skipped))
+            total_tests=$((total_tests + tests))
+            total_failures=$((total_failures + failures))
+            total_errors=$((total_errors + errors))
+            total_skipped=$((total_skipped + skipped))
+            summary_lines="${summary_lines}| ${module} | ${tests} | ${passed} | ${failures} | ${errors} | ${skipped} |\n"
+            if [ "$failures" -gt 0 ] || [ "$errors" -gt 0 ]; then
+              failed_names=$(grep -oP 'testcase.*?name="\K[^"]+' "$f" | head -20)
+              for name in $failed_names; do
+                summary_lines="${summary_lines}  - ❌ \`${module}: ${name}\`\n"
+              done
+            fi
+          done
+
+          total_passed=$((total_tests - total_failures - total_errors - total_skipped))
+          if [ "$total_tests" -gt 0 ]; then
+            pass_rate=$(echo "scale=1; $total_passed * 100 / $total_tests" | bc)
+          else
+            pass_rate="0"
+          fi
+
+          {
+            echo "## 🧪 Test Summary"
+            echo ""
+            echo "| Module | Tests | Passed | Failures | Errors | Skipped |"
+            echo "|--------|-------|--------|----------|--------|---------|"
+            echo -e "$summary_lines"
+            echo "| **Total** | **${total_tests}** | **${total_passed}** | **${total_failures}** | **${total_errors}** | **${total_skipped}** |"
+            echo ""
+            echo "**Pass Rate:** ${pass_rate}%"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Integration Tests
         if: ${{ inputs.run-integration-tests }}
