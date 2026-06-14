@@ -19,15 +19,16 @@ success() { echo -e "${GREEN}[OK]${NC}    $*"; }
 info "停止 ${PROFILE} 项目容器（基础设施保持运行）..."
 
 # 停止并删除该 profile 的应用容器
+cd "${ROOT_DIR}"
 docker compose \
-    -f "${ROOT_DIR}/docker-compose.infra.yml" \
-    -f "${ROOT_DIR}/docker-compose.apps.yml" \
+    -f "docker-compose.infra.yml" \
+    -f "docker-compose.apps.yml" \
     --profile "${PROFILE}" \
     stop
 
 docker compose \
-    -f "${ROOT_DIR}/docker-compose.infra.yml" \
-    -f "${ROOT_DIR}/docker-compose.apps.yml" \
+    -f "docker-compose.infra.yml" \
+    -f "docker-compose.apps.yml" \
     --profile "${PROFILE}" \
     rm -f
 

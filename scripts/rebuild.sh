@@ -20,7 +20,7 @@ info()    { echo -e "${BLUE}[INFO]${NC}  $*"; }
 success() { echo -e "${GREEN}[OK]${NC}    $*"; }
 warn()    { echo -e "${YELLOW}[WARN]${NC}  $*"; }
 
-COMPOSE_FILES="-f ${ROOT_DIR}/docker-compose.infra.yml -f ${ROOT_DIR}/docker-compose.apps.yml"
+COMPOSE_FILES="-f docker-compose.infra.yml -f docker-compose.apps.yml"
 
 # 项目名到服务名映射
 declare -A PROJECT_SERVICES
@@ -53,6 +53,7 @@ else
 fi
 
 # 重新构建并重启
+cd "${ROOT_DIR}"
 for svc in ${SERVICES}; do
     info "重新构建 ${svc}..."
     docker compose ${COMPOSE_FILES} --profile "${PROFILE}" up -d --build "${svc}"

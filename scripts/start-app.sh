@@ -28,9 +28,10 @@ if ! echo " $VALID_PROFILES " | grep -q " $PROFILE "; then
 fi
 
 info "启动基础设施 + ${PROFILE} 项目容器..."
+cd "${ROOT_DIR}"
 docker compose \
-    -f "${ROOT_DIR}/docker-compose.infra.yml" \
-    -f "${ROOT_DIR}/docker-compose.apps.yml" \
+    -f "docker-compose.infra.yml" \
+    -f "docker-compose.apps.yml" \
     --profile "${PROFILE}" \
     up -d
 

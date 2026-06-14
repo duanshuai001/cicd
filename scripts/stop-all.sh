@@ -14,9 +14,10 @@ info()    { echo -e "${BLUE}[INFO]${NC}  $*"; }
 success() { echo -e "${GREEN}[OK]${NC}    $*"; }
 
 info "停止全部容器..."
+cd "${ROOT_DIR}"
 docker compose \
-    -f "${ROOT_DIR}/docker-compose.infra.yml" \
-    -f "${ROOT_DIR}/docker-compose.apps.yml" \
+    -f "docker-compose.infra.yml" \
+    -f "docker-compose.apps.yml" \
     --profile all \
     down
 
