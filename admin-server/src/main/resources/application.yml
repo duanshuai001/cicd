@@ -1,0 +1,10 @@
+server:
+  port: 8080
+
+spring:
+  boot:
+    admin:
+      server:
+        address: 0.0.0.0
+  application:
+    name: admin-server

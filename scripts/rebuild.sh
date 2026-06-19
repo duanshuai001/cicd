@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 # ============================================================
 # 重新构建+重启指定服务（加载最新代码）
 # 用法:
@@ -22,29 +22,37 @@ warn()    { echo -e "${YELLOW}[WARN]${NC}  $*"; }
 
 COMPOSE_FILES="-f docker-compose.infra.yml -f docker-compose.apps.yml"
 
-# 项目名到服务名映射
-declare -A PROJECT_SERVICES
-PROJECT_SERVICES[eval]="eval-boot eval-answer-boot eval-mcp-server eval-answer-ui"
-PROJECT_SERVICES[perm]="perm-boot"
-PROJECT_SERVICES[bizgraph]="bizgraph-backend bizgraph-frontend bizgraph-mcp"
-PROJECT_SERVICES[basedata]="basedata-boot"
+# 项目名到服务名映射（用 case 而非 declare -A，兼容 bash 3.2.57）
+get_services_for_project() {
+  case "$1" in
+    eval)    echo "eval-boot eval-answer-boot eval-mcp-server eval-answer-ui" ;;
+    perm)    echo "perm-boot" ;;
+    bizgraph) echo "bizgraph-new" ;;
+    basedata) echo "basedata-boot" ;;
+    *)       echo "" ;;
+  esac
+}
+
+get_profile_for_service() {
+  for proj in eval perm bizgraph basedata; do
+    if echo " $(get_services_for_project "$proj") " | grep -q " $1 "; then
+      echo "$proj"
+      return
+    fi
+  done
+  echo ""
+}
 
 # 判断是项目名还是服务名
-if [ -n "${PROJECT_SERVICES[$TARGET]+x}" ]; then
+SERVICES="$(get_services_for_project "$TARGET")"
+if [ -n "$SERVICES" ]; then
     # 是项目名，重建该项目下所有服务
-    SERVICES="${PROJECT_SERVICES[$TARGET]}"
     PROFILE="$TARGET"
     info "重建 ${TARGET} 项目所有服务: ${SERVICES}"
 else
     # 是服务名，需要找到对应的 profile
     SERVICES="$TARGET"
-    PROFILE=""
-    for proj in "${!PROJECT_SERVICES[@]}"; do
-        if echo " ${PROJECT_SERVICES[$proj]} " | grep -q " $TARGET "; then
-            PROFILE="$proj"
-            break
-        fi
-    done
+    PROFILE="$(get_profile_for_service "$TARGET")"
     if [ -z "$PROFILE" ]; then
         warn "未找到服务 ${TARGET} 对应的项目，使用 all profile"
         PROFILE="all"

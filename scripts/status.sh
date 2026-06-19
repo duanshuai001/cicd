@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 # ============================================================
 # 查看所有服务状态
 # ============================================================
@@ -56,7 +56,7 @@ echo ""
 
 # 应用状态 - BizGraph
 info "--- BizGraph（82xx）---"
-for container in bizgraph-backend bizgraph-frontend bizgraph-mcp; do
+for container in bizgraph-new; do
     if docker ps --format "{{.Names}}" | grep -q "^${container}$"; then
         port=$(docker ps --format "{{.Names}}\t{{.Ports}}" | grep "^${container}" | awk '{print $2}' | head -1)
         echo -e "  ${GREEN}●${NC} ${container}  ${port}"

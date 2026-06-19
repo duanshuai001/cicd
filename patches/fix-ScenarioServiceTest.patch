@@ -1,0 +1,55 @@
+--- a/src/test/java/com/bizgraph/service/ScenarioServiceTest.java
++++ b/src/test/java/com/bizgraph/service/ScenarioServiceTest.java
+@@ -7,6 +7,7 @@ import com.bizgraph.dto.BusinessScenarioDTO;
+ import com.bizgraph.dto.CreateScenarioRequest;
+ import com.bizgraph.repository.BusinessScenarioRepository;
+ import com.bizgraph.repository.ScenarioStepRepository;
++import com.bizgraph.repository.ScenarioNodePositionRepository;
+ import org.junit.jupiter.api.DisplayName;
+ import org.junit.jupiter.api.Nested;
+ import org.junit.jupiter.api.Test;
+@@ -31,6 +32,8 @@ class ScenarioServiceTest {
+     @Mock
+     private BusinessScenarioRepository scenarioRepository;
+     @Mock
+     private ScenarioStepRepository scenarioStepRepository;
++    @Mock
++    private ScenarioNodePositionRepository nodePositionRepository;
+
+     @InjectMocks
+     private ScenarioService scenarioService;
+@@ -44,10 +47,22 @@ class ScenarioServiceTest {
+         @Test
+         @DisplayName("正常返回场景列表")
+         void should_returnScenarioList_when_listByProject() {
++            // 修复：listByProject 中按 sortOrder + createdAt 排序，mock 对象这两字段为 null 会 NPE
+             BusinessScenario scenario1 = new BusinessScenario("AI生成模型场景", "model-core");
++            scenario1.changeSortOrder(1);
+             BusinessScenario scenario2 = new BusinessScenario("手动编辑模型场景", "model-core");
++            scenario2.changeSortOrder(2);
+             when(scenarioRepository.findByProjectId("model-core")).thenReturn(List.of(scenario1, scenario2));
+-            when(scenarioStepRepository.findByScenarioId(any())).thenReturn(List.of());
+
+             List<BusinessScenarioDTO> result = scenarioService.listByProject("model-core");
+@@ -70,11 +85,10 @@ class ScenarioServiceTest {
+             request.setPostCondition("业务模型已生成");
+
+             BusinessScenario scenario = new BusinessScenario("AI生成模型场景", "model-core");
+-            scenario.updateInfo("AI生成模型场景", "用户输入业务想法后AI自动生成领域模型", "用户已创建项目", "业务模型已生成");
++            scenario.updateInfo(request.getName(), request.getDescription(), request.getPreCondition(), request.getPostCondition());
++            // 修复：去掉 unused stub (UnnecessaryStubbingException)
++            // create 方法不调用 findByScenarioId，这里 stub 是多余的
+             when(scenarioRepository.save(any(BusinessScenario.class))).thenReturn(scenario);
+-            when(scenarioStepRepository.findByScenarioId(any())).thenReturn(List.of());
+
+             BusinessScenarioDTO result = scenarioService.create("model-core", request);
+@@ -93,7 +107,10 @@ class ScenarioServiceTest {
+         @Test
+         @DisplayName("正常删除场景")
+         void should_deleteScenario_when_delete() {
++            // 修复：delete 方法调用了 nodePositionRepository.deleteByScenarioId，未 mock 会 NPE
+             when(scenarioRepository.existsById("id1")).thenReturn(true);
++            when(scenarioStepRepository.findByScenarioId("id1")).thenReturn(List.of());
++            // nodePositionRepository.deleteByScenarioId 是 void 方法，mock 后默认什么都不做
+
+             scenarioService.delete("id1");

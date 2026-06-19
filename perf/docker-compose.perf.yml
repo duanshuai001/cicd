@@ -1,0 +1,66 @@
+version: "3.8"
+
+# eval_new 性能测试部署文件
+# 用法: docker compose -f docker-compose.perf.yml up --build
+
+services:
+  dev-postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: eval
+      POSTGRES_USER: dev
+      POSTGRES_PASSWORD: dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - eval-perf-pgdata:/var/lib/postgresql/data
+      - ${EVAL_NEW_HOME:-../eval_new}/eval-boot/src/main/resources/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ${EVAL_NEW_HOME:-../eval_new}/eval-answer-boot/src/main/resources/answer-schema.sql:/docker-entrypoint-initdb.d/02-answer-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dev -d eval"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  dev-zookeeper:
+    image: bitnami/zookeeper:3.9
+    environment:
+      ALLOW_ANONYMOUS_LOGIN: "yes"
+    ports:
+      - "2181:2181"
+    volumes:
+      - eval-perf-zkdata:/bitnami/zookeeper
+
+  eval-boot:
+    build:
+      context: ${EVAL_NEW_HOME:-../eval_new}
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    depends_on:
+      dev-postgres:
+        condition: service_healthy
+      dev-zookeeper:
+        condition: service_started
+    environment:
+      JAVA_OPTS: "-Xms256m -Xmx512m"
+    restart: on-failure
+
+  eval-answer-boot:
+    build:
+      context: ${EVAL_NEW_HOME:-../eval_new}
+      dockerfile: Dockerfile.answer
+    ports:
+      - "8081:8081"
+    depends_on:
+      dev-postgres:
+        condition: service_healthy
+      dev-zookeeper:
+        condition: service_started
+    environment:
+      JAVA_OPTS: "-Xms256m -Xmx512m"
+    restart: on-failure
+
+volumes:
+  eval-perf-pgdata:
+  eval-perf-zkdata:

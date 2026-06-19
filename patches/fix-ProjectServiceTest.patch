@@ -1,0 +1,32 @@
+--- a/src/test/java/com/bizgraph/service/ProjectServiceTest.java
++++ b/src/test/java/com/bizgraph/service/ProjectServiceTest.java
+@@ -181,21 +181,23 @@ class ProjectServiceTest {
+
+         @Test
+         @DisplayName("正常删除项目")
+         void should_deleteProject_when_delete() {
+-            when(projectRepository.existsById("id1")).thenReturn(true);
++            // 生产代码 ProjectService.delete 内部使用 findById + 状态校验
++            // 这里 stub findById 返回 DRAFT 状态的项目（默认状态）
++            Project project = new Project("BizGraph v1.0", "architect-001");
++            when(projectRepository.findById("id1")).thenReturn(Optional.of(project));
+
+             projectService.delete("id1");
+
+             verify(projectRepository).deleteById("id1");
+         }
+
+         @Test
+         @DisplayName("项目不存在时抛出BizGraphException")
+         void should_throwBizGraphException_when_deleteAndProjectNotFound() {
+-            when(projectRepository.existsById("notExist")).thenReturn(false);
++            when(projectRepository.findById("notExist")).thenReturn(Optional.empty());
+
+             BizGraphException ex = assertThrows(BizGraphException.class,
+                     () -> projectService.delete("notExist"));
+             assertEquals(404, ex.getCode());
+             assertTrue(ex.getMessage().contains("项目不存在"));
+             verify(projectRepository, never()).deleteById(anyString());
+         }
+     }
+ }

@@ -1,0 +1,131 @@
+// ============================================================
+// 修复后的 ScenarioServiceTest.java — 完整文件
+// 直接用此文件覆盖原文件
+// ============================================================
+package com.bizgraph.service;
+
+import com.bizgraph.common.BizGraphException;
+import com.bizgraph.domain.model.behavior.BusinessScenario;
+import com.bizgraph.dto.BusinessScenarioDTO;
+import com.bizgraph.dto.CreateScenarioRequest;
+import com.bizgraph.repository.BusinessScenarioRepository;
+import com.bizgraph.repository.ScenarioNodePositionRepository;
+import com.bizgraph.repository.ScenarioStepRepository;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.util.List;
+import java.util.Optional;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.*;
+
+/**
+ * 业务场景服务单元测试
+ */
+@ExtendWith(MockitoExtension.class)
+@DisplayName("业务场景服务测试")
+class ScenarioServiceTest {
+
+    @Mock
+    private BusinessScenarioRepository scenarioRepository;
+    @Mock
+    private ScenarioStepRepository scenarioStepRepository;
+    // 新增：mock nodePositionRepository（修复 delete 时的 NPE）
+    @Mock
+    private ScenarioNodePositionRepository nodePositionRepository;
+
+    @InjectMocks
+    private ScenarioService scenarioService;
+
+    @Nested
+    @DisplayName("查询项目下的场景列表")
+    class ListByProjectTest {
+
+        @Test
+        @DisplayName("正常返回场景列表")
+        void should_returnScenarioList_when_listByProject() {
+            // 修复：给场景设置 sortOrder 避免 Comparator.thenComparing 报 NPE
+            BusinessScenario scenario1 = new BusinessScenario("AI生成模型场景", "model-core");
+            scenario1.changeSortOrder(1);
+            BusinessScenario scenario2 = new BusinessScenario("手动编辑模型场景", "model-core");
+            scenario2.changeSortOrder(2);
+            when(scenarioRepository.findByProjectId("model-core")).thenReturn(List.of(scenario1, scenario2));
+            // 修复：删除多余 stub（UnnecessaryStubbingException）
+            // listByProject 不调用 findByScenarioId
+
+            List<BusinessScenarioDTO> result = scenarioService.listByProject("model-core");
+
+            assertEquals(2, result.size());
+            assertEquals("AI生成模型场景", result.get(0).getName());
+            assertEquals("手动编辑模型场景", result.get(1).getName());
+            verify(scenarioRepository).findByProjectId("model-core");
+        }
+    }
+
+    @Nested
+    @DisplayName("创建场景")
+    class CreateTest {
+
+        @Test
+        @DisplayName("正常创建场景")
+        void should_createScenario_when_create() {
+            CreateScenarioRequest request = new CreateScenarioRequest();
+            request.setName("AI生成模型场景");
+            request.setDescription("用户输入业务想法后AI自动生成领域模型");
+            request.setPreCondition("用户已创建项目");
+            request.setPostCondition("业务模型已生成");
+
+            BusinessScenario scenario = new BusinessScenario(request.getName(), "model-core");
+            scenario.updateInfo(request.getName(), request.getDescription(), request.getPreCondition(), request.getPostCondition());
+            when(scenarioRepository.save(any(BusinessScenario.class))).thenReturn(scenario);
+            // 修复：删除多余 stub（UnnecessaryStubbingException）
+            // create 方法不调用 findByScenarioId
+
+            BusinessScenarioDTO result = scenarioService.create("model-core", request);
+
+            assertEquals("AI生成模型场景", result.getName());
+            assertEquals("用户输入业务想法后AI自动生成领域模型", result.getDescription());
+            assertEquals("用户已创建项目", result.getPreCondition());
+            assertEquals("业务模型已生成", result.getPostCondition());
+            verify(scenarioRepository).save(any(BusinessScenario.class));
+        }
+    }
+
+    @Nested
+    @DisplayName("删除场景")
+    class DeleteTest {
+
+        @Test
+        @DisplayName("正常删除场景")
+        void should_deleteScenario_when_delete() {
+            // 修复：delete 内部使用 existsById + 调用 scenarioStepRepository.findByScenarioId + nodePositionRepository.deleteByScenarioId
+            when(scenarioRepository.existsById("id1")).thenReturn(true);
+            when(scenarioStepRepository.findByScenarioId("id1")).thenReturn(List.of());
+            // nodePositionRepository.deleteByScenarioId 是 void 方法，mock 后默认什么都不做
+
+            scenarioService.delete("id1");
+
+            verify(scenarioRepository).deleteById("id1");
+        }
+
+        @Test
+        @DisplayName("场景不存在时抛出异常")
+        void should_throwBizGraphException_when_deleteAndScenarioNotFound() {
+            when(scenarioRepository.existsById("notExist")).thenReturn(false);
+
+            BizGraphException ex = assertThrows(BizGraphException.class,
+                    () -> scenarioService.delete("notExist"));
+            assertEquals(404, ex.getCode());
+            assertTrue(ex.getMessage().contains("场景不存在"));
+            verify(scenarioRepository, never()).deleteById(anyString());
+        }
+    }
+}
